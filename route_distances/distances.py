@@ -27,10 +27,14 @@ class Distances():
         """ Remaps an input mode into a mode usable by an API
 
         Args:
-            mode: A string to be remapped
+            mode: A string to be remapped.
 
         Returns:
-            The remapped string according to the class's mode_map attribute
+            The remapped string according to the class's mode_map attribute.
+
+        Raises:
+            LookupError: A mode to be remapped was not found in this class's
+                self.mode_map dictionary.
         """
         if (mode in self.mode_map):
             return self.mode_map[mode]
