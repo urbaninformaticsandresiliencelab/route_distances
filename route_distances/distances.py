@@ -7,6 +7,9 @@ import requests
 # Default entrypoint to be used for non-Google services when none is defined
 DEFAULT_ENTRYPOINT = "localhost:8000"
 
+# Number of attempts to make before abandoning a calculation
+MAX_ATTEMPTS = 5
+
 class Distances():
     """ Base class for distance calculators
 
@@ -42,6 +45,25 @@ class Distances():
             print("Invalid mode \"%s\"" % mode)
             raise LookupError
 
+    def distance(self, *args, **kwargs):
+        """ Frontend function for self.calculate
+
+        Wrapper function that sits between the end user and self.calculate, as
+        defined by child classes. self.distance passes arguments to
+        self.calculate and handles retries
+
+        """
+
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                return self.calculate(*args, **kwargs)
+            except Exception as error:
+                print("Error: %s" % error)
+                print("Retrying (attempt %d)" % (attempt + 1))
+
+        print("Max attempts exceeded")
+        return False
+
 class GoogleMapsDistances(Distances):
     """ Subclass of Distances that uses the Google Maps Distances Matrix API as a
     backend
@@ -66,7 +88,7 @@ class GoogleMapsDistances(Distances):
             "walk": "walking"
         }
 
-    def distance(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk"):
+    def calculate(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk"):
         """ Calculates the distance between two coordinates
 
         Args:
@@ -99,7 +121,7 @@ class GoogleMapsDistances(Distances):
 
         return False
 
-    def distance_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
+    def calculate_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
         """ Calculates the distance between one origin and multiple destinations
 
         Args:
@@ -149,7 +171,7 @@ class OTPDistances(Distances):
             "walk": "WALK"
         }
 
-    def distance(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
         """ Calculates the distance between two coordinates
 
         Args:
@@ -183,6 +205,7 @@ class OTPDistances(Distances):
                     "duration": content["plan"]["itineraries"][0]["legs"][0]["duration"],
                     "distance": content["plan"]["itineraries"][0]["legs"][0]["distance"],
                 }
+
         return False
 
 class OSRMDistances(Distances):
@@ -203,7 +226,7 @@ class OSRMDistances(Distances):
             "walk": "foot"
         }
 
-    def distance(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
         """ Calculates the distance between two coordinates
 
         Args:
@@ -238,6 +261,7 @@ class OSRMDistances(Distances):
                     "distance": content["routes"][0]["distance"],
                     "duration": content["routes"][0]["duration"],
                 }
+
         return False
 
 class ValhallaDistances(Distances):
@@ -258,7 +282,7 @@ class ValhallaDistances(Distances):
             "walk": "pedestrian"
         }
 
-    def distance(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
         """ Calculates the distance between two coordinates
 
         Args:
@@ -297,5 +321,6 @@ class ValhallaDistances(Distances):
                     "distance": content["trip"]["legs"][0]["summary"]["length"] * 1000,
                     "duration": content["trip"]["legs"][0]["summary"]["time"]
                 }
+
         return False
 
