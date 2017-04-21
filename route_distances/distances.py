@@ -282,7 +282,8 @@ class ValhallaDistances(Distances):
             "walk": "pedestrian"
         }
 
-    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk",
+                  avoid = []):
         """ Calculates the distance between two coordinates
 
         Args:
@@ -292,6 +293,7 @@ class ValhallaDistances(Distances):
             dest_lat: The destination latitude
             mode: A key of the self.mode_map dictionary that will be remapped to
                 a different string and passed to the API
+            avoid: An array of (long, lat) pairs to be avoided
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -300,18 +302,25 @@ class ValhallaDistances(Distances):
                 seconds.
         """
 
+        request_json = {
+            "locations": [
+                {"lon": from_long, "lat": from_lat},
+                {"lon": to_long, "lat": to_lat},
+            ],
+            "costing": self.map_mode(mode),
+            "directions_options": {
+                "units": "kilometers"
+            }
+        }
+
+        if (len(avoid) > 0):
+            request_json["avoid_locations"] = [
+                {"lat": x[0], "lon": x[1]} for x in avoid
+            ]
+
         response = requests.post(
             "http://%s/route" % self.entrypoint,
-            json = {
-                "locations": [
-                    {"lon": from_long, "lat": from_lat},
-                    {"lon": to_long, "lat": to_lat},
-                ],
-                "costing": self.map_mode(mode),
-                "directions_options": {
-                    "units": "kilometers"
-                }
-            }
+            json = request_json
         )
 
         if (response.status_code == 200):
