@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
+import datetime
 import googlemaps
 import json
 import requests
 
 # Default entrypoint to be used for non-Google services when none is defined
 DEFAULT_ENTRYPOINT = "localhost:8000"
+
+# Default timeout
+DEFAULT_TIMEOUT = 30
 
 # Number of attempts to make before abandoning a calculation
 MAX_ATTEMPTS = 5
@@ -16,7 +20,7 @@ class Distances():
     Attributes:
         mode_map: A dictionary of key remaps, to be defined by subclasses. For
             example, the following map would map drive/walk/transit/bike to
-            valid OpenTripPlanner modes
+            valid OpenTripPlanner modes:
 
                 self.mode_map = {
                     "drive": "WALK,CAR",
@@ -24,7 +28,30 @@ class Distances():
                     "transit": "WALK,TRANSIT",
                     "bike": "WALK,BICYCLE"
                 }
+        verbose: A boolean describing whether or not verbose output should be
+            enabled.
+        timeout: An integer that describes how long until a route times out.
     """
+
+    def __init__(self, timeout = DEFAULT_TIMEOUT, verbose = False):
+        """ Initializes Distances class and all child classes
+
+        Args:
+            verbose: A boolean that toggles verbosity of output.
+            timeout: An integer that describes how long until a route times out.
+        """
+
+        self.verbose = verbose
+        self.timeout = timeout
+
+    def log(self, string):
+        """ Prints a string if verbose mode is enabled
+
+        Args:
+            string: A string to be printed if self.verbose is True.
+        """
+        if (self.verbose):
+            print("%s %s" % (datetime.datetime.now().isoformat(), string))
 
     def map_mode(self, mode):
         """ Remaps an input mode into a mode usable by an API
@@ -39,6 +66,7 @@ class Distances():
             LookupError: A mode to be remapped was not found in this class's
                 self.mode_map dictionary.
         """
+
         if (mode in self.mode_map):
             return self.mode_map[mode]
         else:
@@ -49,19 +77,20 @@ class Distances():
         """ Frontend function for self.calculate
 
         Wrapper function that sits between the end user and self.calculate, as
-        defined by child classes. self.distance passes arguments to
-        self.calculate and handles retries
+        defined by child classes. self.distance passes all arguments to
+        self.calculate and handles retries.
 
         """
 
         for attempt in range(MAX_ATTEMPTS):
             try:
+                if (attempt > 0):
+                    self.log("Retrying (attempt %d)" % (attempt + 1))
                 return self.calculate(*args, **kwargs)
             except Exception as error:
                 print("Error: %s" % error)
-                print("Retrying (attempt %d)" % (attempt + 1))
 
-        print("Max attempts exceeded")
+        self.log("Max attempts reached (%d)" % MAX_ATTEMPTS)
         return False
 
 class GoogleMapsDistances(Distances):
@@ -69,17 +98,18 @@ class GoogleMapsDistances(Distances):
     backend
 
     Attributes:
-        gmaps: An instance of googlemaps.Client used for scraping
+        gmaps: An instance of googlemaps.Client used for scraping.
     """
 
-    def __init__(self, api_key):
+    def __init__(self, api_key, *args, **kwargs):
         """ Initialize GoogleMapsDistances object
 
         Args:
             api_key: The Google Maps API key to be used to initialize the
-                self.gmaps googlemaps.Client object
+                self.gmaps googlemaps.Client object.
         """
 
+        Distances.__init__(self, *args, **kwargs)
         self.gmaps = googlemaps.Client(key = api_key, timeout = 600)
         self.mode_map = {
             "bike": "bicycling",
@@ -92,12 +122,12 @@ class GoogleMapsDistances(Distances):
         """ Calculates the distance between two coordinates
 
         Args:
-            orig_long: The origin longitude
-            orig_lat: The origin latitude
-            dest_long: The destination longitude
-            dest_lat: The destination latitude
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
+            dest_long: The destination longitude.
+            dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
-                a different string and passed to the API
+                a different string and passed to the API.
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -113,6 +143,7 @@ class GoogleMapsDistances(Distances):
             mode = self.map_mode(mode)
         )
 
+        self.log(result)
         if (result["status"] == "OK"):
             return {
                 "duration": result["rows"][0]["elements"][0]["duration"]["value"],
@@ -125,22 +156,24 @@ class GoogleMapsDistances(Distances):
         """ Calculates the distance between one origin and multiple destinations
 
         Args:
-            orig_long: The origin longitude
-            orig_lat: The origin latitude
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
             destinations: An iterable containing (long, lat) tuples or lists
             mode: A key of the self.mode_map dictionary that will be remapped
-                to a different string and passed to the API
+                to a different string and passed to the API.
 
         Returns:
-            A list of dictionaries formatted like the output of self.distance()
+            A list of dictionaries formatted like the output of self.distance().
         """
 
+        self.log("Sending request to Google")
         result = self.gmaps.distance_matrix(
             origins = (orig_lat, orig_long),
             destinations = [(coord[1], coord[0]) for coord in destinations],
             units = "metric",
             mode = self.map_mode(mode)
         )
+        self.log("Response: %s" % result)
 
         if (result["status"] == "OK"):
             results = []
@@ -156,13 +189,14 @@ class GoogleMapsDistances(Distances):
 class OTPDistances(Distances):
     """ Subclass of Distances that uses OpenTripPlanner as a backend """
 
-    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT):
+    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT, *args, **kwargs):
         """ Initializes the OTPDistances class
 
         Args:
-            entrypoint: The base URL containing the API entrypoint
+            entrypoint: The base URL containing the API entrypoint.
         """
 
+        Distances.__init__(self, *args, **kwargs)
         self.entrypoint = entrypoint
         self.mode_map = {
             "bike": "WALK,BICYCLE",
@@ -175,12 +209,12 @@ class OTPDistances(Distances):
         """ Calculates the distance between two coordinates
 
         Args:
-            orig_long: The origin longitude
-            orig_lat: The origin latitude
-            dest_long: The destination longitude
-            dest_lat: The destination latitude
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
+            dest_long: The destination longitude.
+            dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
-                a different string and passed to the API
+                a different string and passed to the API.
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -189,14 +223,16 @@ class OTPDistances(Distances):
                 seconds.
         """
 
-        response = requests.get(
-            "http://%s/otp/routers/default/plan"
-            "?fromPlace=%f,%f&toPlace=%f,%f&mode=%s" % (
-                self.entrypoint,
-                from_lat, from_long, to_lat, to_long,
-                self.map_mode(mode)
-            )
-        )
+        url = ("http://%s/otp/routers/default/plan"
+               "?fromPlace=%f,%f&toPlace=%f,%f&mode=%s" % (
+            self.entrypoint,
+            from_lat, from_long, to_lat, to_long,
+            self.map_mode(mode)
+        ))
+
+        self.log("Sending request: %s" % url)
+        response = requests.get(url, timeout = self.timeout)
+        self.log("Response: %s" % response.content.decode())
 
         if (response.status_code == 200):
             content = json.loads(response.content.decode())
@@ -211,13 +247,14 @@ class OTPDistances(Distances):
 class OSRMDistances(Distances):
     """ Subclass of Distances that uses OSRM as a backend """
 
-    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT):
+    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT, *args, **kwargs):
         """ Initializes the OSRMDistances class
 
         Args:
-            entrypoint: The base URL containing the API entrypoint
+            entrypoint: The base URL containing the API entrypoint.
         """
 
+        Distances.__init__(self, *args, **kwargs)
         self.entrypoint = entrypoint
         self.mode_map = {
             "bike": "bike",
@@ -230,12 +267,12 @@ class OSRMDistances(Distances):
         """ Calculates the distance between two coordinates
 
         Args:
-            orig_long: The origin longitude
-            orig_lat: The origin latitude
-            dest_long: The destination longitude
-            dest_lat: The destination latitude
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
+            dest_long: The destination longitude.
+            dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
-                a different string and passed to the API
+                a different string and passed to the API.
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -245,14 +282,16 @@ class OSRMDistances(Distances):
         """
 
 
-        response = requests.get(
-            "http://%s/route/v1/%s/"
-            "%f,%f;%f,%f" % (
-                self.entrypoint,
-                self.map_mode(mode),
-                from_long, from_lat, to_long, to_lat
-            )
-        )
+        url = ("http://%s/route/v1/%s/"
+               "%f,%f;%f,%f" % (
+            self.entrypoint,
+            self.map_mode(mode),
+            from_long, from_lat, to_long, to_lat
+        ))
+
+        self.log("Sending request: %s" % url)
+        response = requests.get(url, timeout = self.timeout)
+        self.log("Response: %s" % response.content.decode())
 
         if (response.status_code == 200):
             content = json.loads(response.content.decode())
@@ -267,13 +306,14 @@ class OSRMDistances(Distances):
 class ValhallaDistances(Distances):
     """ Subclass of Distances that uses Valhalla as a backend """
 
-    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT):
+    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT, *args, **kwargs):
         """ Initializes the ValhallaDistances class
 
         Args:
-            entrypoint: The base URL containing the API entrypoint
+            entrypoint: The base URL containing the API entrypoint.
         """
 
+        Distances.__init__(self, *args, **kwargs)
         self.entrypoint = entrypoint
         self.mode_map = {
             "bike": "bicycle",
@@ -287,13 +327,13 @@ class ValhallaDistances(Distances):
         """ Calculates the distance between two coordinates
 
         Args:
-            orig_long: The origin longitude
-            orig_lat: The origin latitude
-            dest_long: The destination longitude
-            dest_lat: The destination latitude
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
+            dest_long: The destination longitude.
+            dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
-                a different string and passed to the API
-            avoid: An array of (long, lat) pairs to be avoided
+                a different string and passed to the API.
+            avoid: An array of (long, lat) pairs to be avoided.
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -318,10 +358,14 @@ class ValhallaDistances(Distances):
                 {"lat": x[0], "lon": x[1]} for x in avoid
             ]
 
+        self.log("Sending request JSON to %s: %s" % (self.entrypoint,
+                                                     request_json))
         response = requests.post(
             "http://%s/route" % self.entrypoint,
-            json = request_json
+            json = request_json,
+            timeout = self.timeout
         )
+        self.log("Response: %s" % response.content.decode())
 
         if (response.status_code == 200):
             content = json.loads(response.content.decode())
