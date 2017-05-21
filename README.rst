@@ -16,3 +16,8 @@ The base Distances class includes a ``distance(orig_long, orig_lat, dest_long,
 dest_lat)`` function that returns a dictionary containing the distance of the
 route in the ``distance`` index and the duration of the route in the
 ``duration`` index, or ``False`` if no route could be made.
+
+Each class has a built in error handler that can either return False or throw
+an exception returned by the requests library. This functionality can be
+toggled by passing ``fail_fast = True`` or ``fail_fast = False`` during class
+instantiation. This is useful if you want to handle exceptions on your own.

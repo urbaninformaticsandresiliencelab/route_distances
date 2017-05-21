@@ -4,7 +4,7 @@ import setuptools
 
 setuptools.setup(
     name = "route_distances",
-    version = "1.2.0",
+    version = "1.3.0",
     license = "MIT",
     description = "Classes for getting the distance of a route between two"
                   "places using various different services",

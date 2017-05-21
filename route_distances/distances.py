@@ -28,21 +28,27 @@ class Distances():
                     "transit": "WALK,TRANSIT",
                     "bike": "WALK,BICYCLE"
                 }
+
         verbose: A boolean describing whether or not verbose output should be
             enabled.
         timeout: An integer that describes how long until a route times out.
     """
 
-    def __init__(self, timeout = DEFAULT_TIMEOUT, verbose = False):
+    def __init__(self, timeout = DEFAULT_TIMEOUT, verbose = False,
+                 fail_fast = True):
         """ Initializes Distances class and all child classes
 
         Args:
             verbose: A boolean that toggles verbosity of output.
             timeout: An integer that describes how long until a route times out.
+            fail_fast: A boolean that toggles whether to raise an exception or
+                return False when a route fails to calculate. The exception is
+                the exception returned by the requests library.
         """
 
         self.verbose = verbose
         self.timeout = timeout
+        self.fail_fast = fail_fast
 
     def log(self, string):
         """ Prints a string if verbose mode is enabled
@@ -74,24 +80,31 @@ class Distances():
             raise LookupError
 
     def distance(self, *args, **kwargs):
-        """ Frontend function for self.calculate
+        """ Frontend function for self.route
 
-        Wrapper function that sits between the end user and self.calculate, as
+        Wrapper function that sits between the end user and self.route, as
         defined by child classes. self.distance passes all arguments to
-        self.calculate and handles retries.
+        self.route and handles retries.
 
         """
+
+        exception = None
 
         for attempt in range(MAX_ATTEMPTS):
             try:
                 if (attempt > 0):
                     self.log("Retrying (attempt %d)" % (attempt + 1))
-                return self.calculate(*args, **kwargs)
+                return self.route(*args, **kwargs)
             except Exception as error:
+                exception = error
                 print("Error: %s" % error)
 
         self.log("Max attempts reached (%d)" % MAX_ATTEMPTS)
-        return False
+
+        if (fail_fast):
+            return exception
+        else:
+            return False
 
 class GoogleMapsDistances(Distances):
     """ Subclass of Distances that uses the Google Maps Distances Matrix API as a
@@ -110,7 +123,7 @@ class GoogleMapsDistances(Distances):
         """
 
         Distances.__init__(self, *args, **kwargs)
-        self.gmaps = googlemaps.Client(key = api_key, timeout = 600)
+        self.gmaps = googlemaps.Client(key = api_key, timeout = self.timeout)
         self.mode_map = {
             "bike": "bicycling",
             "drive": "driving",
@@ -118,8 +131,8 @@ class GoogleMapsDistances(Distances):
             "walk": "walking"
         }
 
-    def calculate(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk"):
-        """ Calculates the distance between two coordinates
+    def route(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk"):
+        """ routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
@@ -152,8 +165,8 @@ class GoogleMapsDistances(Distances):
 
         return False
 
-    def calculate_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
-        """ Calculates the distance between one origin and multiple destinations
+    def route_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
+        """ routes the distance between one origin and multiple destinations
 
         Args:
             orig_long: The origin longitude.
@@ -205,8 +218,8 @@ class OTPDistances(Distances):
             "walk": "WALK"
         }
 
-    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
-        """ Calculates the distance between two coordinates
+    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+        """ routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
@@ -263,8 +276,8 @@ class OSRMDistances(Distances):
             "walk": "foot"
         }
 
-    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
-        """ Calculates the distance between two coordinates
+    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+        """ routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
@@ -322,9 +335,9 @@ class ValhallaDistances(Distances):
             "walk": "pedestrian"
         }
 
-    def calculate(self, from_long, from_lat, to_long, to_lat, mode = "walk",
+    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk",
                   avoid = []):
-        """ Calculates the distance between two coordinates
+        """ routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
