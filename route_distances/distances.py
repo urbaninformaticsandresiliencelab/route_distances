@@ -56,6 +56,7 @@ class Distances():
         Args:
             string: A string to be printed if self.verbose is True.
         """
+
         if (self.verbose):
             print("%s %s" % (datetime.datetime.now().isoformat(), string))
 
@@ -112,9 +113,16 @@ class GoogleMapsDistances(Distances):
 
     Attributes:
         gmaps: An instance of googlemaps.Client used for scraping.
+        period_start: The seconds in Unix time since the current scraping
+            period started.
+        requests_this_period: The number of requests made in the current
+            period.
+        request_delay: The number of seconds to sleep between requests.
     """
 
     def __init__(self, api_key = None, client_id = None, client_secret = None,
+                 requests_this_period = 0, requests_per_period = 100000,
+                 period_length = 60*60*24, request_delay = 0.5,
                  *args, **kwargs):
         """ Initialize GoogleMapsDistances object
 
@@ -125,10 +133,18 @@ class GoogleMapsDistances(Distances):
                 docs, client_id and client_secret are needed "for Maps API for
                 Work customers".
             client_id: The Google Maps API for Work client ID.
-            client_secret:: The Google Maps API for Work client secret.
+            client_secret: The Google Maps API for Work client secret.
+            requests_this_period: The number of requests made this period.
+            requests_per_period: The number of requests that can be made per
+                period. The default is taken from the documentation at
+                https://developers.google.com/maps/premium/usage-limits, in the
+                Web service APIs section.
+            period_length: The length of a period, the default being 24 hours.
+            request_delay: The number of seconds to sleep between requests.
         """
 
         Distances.__init__(self, *args, **kwargs)
+
         if (api_key is not None):
             self.gmaps = googlemaps.Client(key = api_key,
                                            timeout = self.timeout)
@@ -136,6 +152,13 @@ class GoogleMapsDistances(Distances):
             self.gmaps = googlemaps.Client(client_id = client_id,
                                            client_secret = client_secret,
                                            timeout = self.timeout)
+
+        self.period_start = None
+        self.requests_this_period = requests_this_period
+        self.requests_per_period = requests_per_period
+        self.period_length = period_length
+        self.request_delay = request_delay
+
         self.mode_map = {
             "bike": "bicycling",
             "drive": "driving",
@@ -143,8 +166,37 @@ class GoogleMapsDistances(Distances):
             "walk": "walking"
         }
 
+    def rate_limit(self):
+        """ Handles rate limiting, holding up the script if necessary """
+
+        self.requests_this_period += 1
+
+        # Don't sleep on the first request
+        if (self.period_start is None):
+            self.period_start = time.time()
+        else:
+            time.sleep(request_delay)
+
+        if (self.requests_this_period >= self.requests_per_period):
+            next_period = self.period_start + self.period_length
+            time_until_next_period = next_period - time.time()
+
+            print("Reached max requests per period (%d >= %d)" % (
+                self.requests_this_period, self.requests_per_period
+            ))
+            print("Sleeping %d seconds until next period (%s)" % (
+                time_until_next_period,
+                datetime.datetime.fromtimestamp(next_period).isoformat()
+            ))
+
+            time.sleep(time_until_next_period)
+
+        if (time.time() >= self.period_start + self.period_length):
+            self.period_start = time.time()
+            self.requests_this_period = 0
+
     def route(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk"):
-        """ routes the distance between two coordinates
+        """ Routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
@@ -160,6 +212,8 @@ class GoogleMapsDistances(Distances):
                 False if there are errors. Distance is in meters; duration is in
                 seconds.
         """
+
+        self.rate_limit()
 
         result = self.gmaps.distance_matrix(
             origins = (orig_lat, orig_long),
@@ -178,7 +232,7 @@ class GoogleMapsDistances(Distances):
         return False
 
     def route_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
-        """ routes the distance between one origin and multiple destinations
+        """ Routes the distance between one origin and multiple destinations
 
         Args:
             orig_long: The origin longitude.
@@ -231,7 +285,7 @@ class OTPDistances(Distances):
         }
 
     def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
-        """ routes the distance between two coordinates
+        """ Routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
@@ -289,7 +343,7 @@ class OSRMDistances(Distances):
         }
 
     def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
-        """ routes the distance between two coordinates
+        """ Routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
@@ -349,7 +403,7 @@ class ValhallaDistances(Distances):
 
     def route(self, from_long, from_lat, to_long, to_lat, mode = "walk",
                   avoid = []):
-        """ routes the distance between two coordinates
+        """ Routes the distance between two coordinates
 
         Args:
             orig_long: The origin longitude.
