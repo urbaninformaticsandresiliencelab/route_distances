@@ -114,16 +114,28 @@ class GoogleMapsDistances(Distances):
         gmaps: An instance of googlemaps.Client used for scraping.
     """
 
-    def __init__(self, api_key, *args, **kwargs):
+    def __init__(self, api_key = None, client_id = None, client_secret = None,
+                 *args, **kwargs):
         """ Initialize GoogleMapsDistances object
 
         Args:
             api_key: The Google Maps API key to be used to initialize the
-                self.gmaps googlemaps.Client object.
+                self.gmaps googlemaps.Client object. Either this or both
+                client_id and client_secret must be provided. According to the
+                docs, client_id and client_secret are needed "for Maps API for
+                Work customers".
+            client_id: The Google Maps API for Work client ID.
+            client_secret:: The Google Maps API for Work client secret.
         """
 
         Distances.__init__(self, *args, **kwargs)
-        self.gmaps = googlemaps.Client(key = api_key, timeout = self.timeout)
+        if (api_key is None):
+            self.gmaps = googlemaps.Client(key = api_key,
+                                           timeout = self.timeout)
+        else:
+            self.gmaps = googlemaps.Client(client_id = client_id,
+                                           client_secret = client_secret,
+                                           timeout = self.timeout)
         self.mode_map = {
             "bike": "bicycling",
             "drive": "driving",
