@@ -101,7 +101,7 @@ class Distances():
 
         self.log("Max attempts reached (%d)" % MAX_ATTEMPTS)
 
-        if (fail_fast):
+        if (self.fail_fast):
             return exception
         else:
             return False
@@ -129,7 +129,7 @@ class GoogleMapsDistances(Distances):
         """
 
         Distances.__init__(self, *args, **kwargs)
-        if (api_key is None):
+        if (api_key is not None):
             self.gmaps = googlemaps.Client(key = api_key,
                                            timeout = self.timeout)
         else:
