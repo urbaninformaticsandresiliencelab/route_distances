@@ -4,6 +4,7 @@ import datetime
 import googlemaps
 import json
 import requests
+import time
 
 # Default entrypoint to be used for non-Google services when none is defined
 DEFAULT_ENTRYPOINT = "localhost:8000"
@@ -175,7 +176,7 @@ class GoogleMapsDistances(Distances):
         if (self.period_start is None):
             self.period_start = time.time()
         else:
-            time.sleep(request_delay)
+            time.sleep(self.request_delay)
 
         if (self.requests_this_period >= self.requests_per_period):
             next_period = self.period_start + self.period_length
