@@ -102,7 +102,7 @@ class Distances():
         self.log("Max attempts reached (%d)" % MAX_ATTEMPTS)
 
         if (self.fail_fast):
-            return exception
+            raise exception
         else:
             return False
 
