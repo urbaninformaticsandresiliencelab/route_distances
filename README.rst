@@ -8,6 +8,8 @@ between two places using various different routing services
 
     import route_distances
 
+    # api_key or client_id and client_secret are only required for the
+    # GoogleMapsDistances class; the other classes require entrypoint instead.
     calculator = route_distances.GoogleMapsDistances(
         client_id = "your_client_id",
         client_secret = "your_api_key",
@@ -56,6 +58,11 @@ instantiation. This is useful if you want to handle exceptions on your own.
 Features specific to the ``GoogleMapsDistances`` class
 ------------------------------------------------------
 
+The ``GoogleMapsDistances`` class can be instantiated either by supplying
+``api_key`` or both ``client_id`` and ``client_secret``. The latter two
+arguments are required if you want to make use of ``departure_time`` and are
+only issued to Google Maps API for Work customers.
+
 The ``GoogleMapsDistances`` class includes built-in rate limiting that ensures
 that the `Google Maps web service API limits
 <https://developers.google.com/maps/premium/usage-limits#web-service-apis>`_
@@ -67,9 +74,10 @@ are defined in the docstring of ``GoogleMapsDistances.__init__``. By default,
 this limits you to 100k requests per 24 hours as defined by the API limits, but
 you are able to configure this in the class initialization.
 
-Additionally, ``GoogleMapsDistances.route`` exposes the ``departure_time``
-argument of the underlying ``googlemaps.Client.distance_matrix`` function,
-allowing you to get traffic-adjusted route durations:
+``GoogleMapsDistances.route`` exposes the ``departure_time`` argument of the
+underlying ``googlemaps.Client.distance_matrix`` function, allowing you to get
+traffic-adjusted route durations if initialized with ``client_id`` and
+``client_secret``:
 
 .. code-block:: python
 
