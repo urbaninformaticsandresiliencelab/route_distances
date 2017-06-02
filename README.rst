@@ -17,8 +17,8 @@ between two places using various different routing services
         verbose = True
     )
 
-    orig_latlong = (-71.0913657, 42.3398186)
-    dest_latlong = (-71.096354, 42.3600949)
+    orig_longlat = (-71.0913657, 42.3398186)
+    dest_longlat = (-71.096354, 42.3600949)
     calculator.route(
         *orig_latlong,
         *dest_latlong,
