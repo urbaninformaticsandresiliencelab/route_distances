@@ -20,8 +20,8 @@ between two places using various different routing services
     orig_longlat = (-71.0913657, 42.3398186)
     dest_longlat = (-71.096354, 42.3600949)
     calculator.route(
-        *orig_latlong,
-        *dest_latlong,
+        *orig_longlat,
+        *dest_longlat,
         mode = "drive"
     )
 
@@ -84,8 +84,8 @@ traffic-adjusted route durations if initialized with ``client_id`` and
     import datetime
 
     calculator.route(
-        *orig_latlong,
-        *dest_latlong,
+        *orig_longlat,
+        *dest_longlat,
         mode = "drive",
         departure_time = datetime.datetime(2017, 6, 7, 17)
     )
