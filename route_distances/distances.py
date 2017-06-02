@@ -114,6 +114,9 @@ class GoogleMapsDistances(Distances):
 
     Attributes:
         gmaps: An instance of googlemaps.Client used for scraping.
+        for_work: Tells whether or not a Google Maps API for Work account was
+            used to authenticate. This must be true to use the departure_time
+            argument in the route function.
         period_start: The seconds in Unix time since the current scraping
             period started.
         requests_this_period: The number of requests made in the current
@@ -153,6 +156,7 @@ class GoogleMapsDistances(Distances):
             self.gmaps = googlemaps.Client(client_id = client_id,
                                            client_secret = client_secret,
                                            timeout = self.timeout)
+            self.for_work = True
 
         self.period_start = None
         self.requests_this_period = requests_this_period
@@ -196,7 +200,8 @@ class GoogleMapsDistances(Distances):
             self.period_start = time.time()
             self.requests_this_period = 0
 
-    def route(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk"):
+    def route(self, orig_long, orig_lat, dest_long, dest_lat, 
+              departure_time = None, mode = "walk"):
         """ Routes the distance between two coordinates
 
         Args:
@@ -206,6 +211,18 @@ class GoogleMapsDistances(Distances):
             dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
                 a different string and passed to the API.
+            departure_time: From the Google Maps API Python client docs:
+
+                    Specifies the desired time of departure as seconds since
+                    midnight, January 1, 1970 UTC. The departure time may be
+                    specified by Google Maps API for Work customers to receive
+                    trip duration considering current traffic conditions. The
+                    departure_time must be set to within a few minutes of the
+                    current time.
+
+                If this is specified, then the traffic-adjusted travel time is
+                returned. The client must be authorized with a client ID and
+                client secret instead of an API key for this to work.
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -216,21 +233,42 @@ class GoogleMapsDistances(Distances):
 
         self.rate_limit()
 
-        result = self.gmaps.distance_matrix(
-            origins = (orig_lat, orig_long),
-            destinations = (dest_lat, dest_long),
-            units = "metric",
-            mode = self.map_mode(mode)
-        )
+        if (departure_time):
 
-        self.log(result)
-        if (result["status"] == "OK"):
-            return {
-                "duration": result["rows"][0]["elements"][0]["duration"]["value"],
-                "distance": result["rows"][0]["elements"][0]["distance"]["value"]
-            }
+            self.log("Sending live traffic-adjusted request to Google")
+            result = self.gmaps.distance_matrix(
+                origins = (orig_lat, orig_long),
+                destinations = (dest_lat, dest_long),
+                units = "metric",
+                mode = self.map_mode(mode),
+                departure_time = departure_time
+            )
+            self.log("Response: %s" % result)
 
-        return False
+            if (result["status"] == "OK"):
+                return {
+                    "duration": result["rows"][0]["elements"][0]["duration_in_traffic"]["value"],
+                    "distance": result["rows"][0]["elements"][0]["distance"]["value"]
+                }
+
+        else:
+
+            self.log("Sending request to Google")
+            result = self.gmaps.distance_matrix(
+                origins = (orig_lat, orig_long),
+                destinations = (dest_lat, dest_long),
+                units = "metric",
+                mode = self.map_mode(mode)
+            )
+            self.log("Response: %s" % result)
+
+            if (result["status"] == "OK"):
+                return {
+                    "duration": result["rows"][0]["elements"][0]["duration"]["value"],
+                    "distance": result["rows"][0]["elements"][0]["distance"]["value"]
+                }
+
+            return False
 
     def route_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
         """ Routes the distance between one origin and multiple destinations

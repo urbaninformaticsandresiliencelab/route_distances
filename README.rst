@@ -1,8 +1,39 @@
 route_distances
 ===============
 
-Classes for getting the distance of a route between two places using various
-different services. Included classes:
+Classes to simplify the process of getting the distance and duration of a route
+between two places using various different routing services
+
+.. code-block:: python
+
+    import route_distances
+
+    calculator = route_distances.GoogleMapsDistances(
+        client_id = "your_client_id",
+        client_secret = "your_api_key",
+        fail_fast = True,
+        verbose = True
+    )
+
+    orig_latlong = (-71.0913657, 42.3398186)
+    dest_latlong = (-71.096354, 42.3600949)
+    calculator.route(
+        *orig_latlong,
+        *dest_latlong,
+        mode = "drive"
+    )
+
+..
+
+::
+
+    2017-06-02T16:00:18.492668 Sending request to Google
+    2017-06-02T16:00:19.001539 Response: {'rows': [{'elements': [{'distance': {'value': 2883, 'text': '2.9 km'}, 'duration': {'value': 736, 'text': '12 mins'}, 'status': 'OK'}]}], 'origin_addresses': ['Fencourt Rd, Boston, MA 02115, USA'], 'destination_addresses': ['130 Albany St, Cambridge, MA 02139, USA'], 'status': 'OK'}
+    {'distance': 2883, 'duration': 736}
+
+..
+
+Included classes:
 
 * ``GoogleMapsDistances``: `Google Maps Distance Matrix API
   <https://developers.google.com/maps/documentation/distance-matrix/intro>`_
@@ -17,15 +48,50 @@ dest_lat)`` function that returns a dictionary containing the distance of the
 route in the ``distance`` index and the duration of the route in the
 ``duration`` index, or ``False`` if no route could be made.
 
-The ``GoogleMapsDistances`` class includes built-in rate limiting that ensures
-that the `Google Maps web service API limits
-<https://developers.google.com/maps/premium/usage-limits#web-service-apis>`_
-are not exceeded, provided that all requests made to the Google Maps Distance
-Matrix API are made through a single instance of this class. The rate limiting
-function is called before every request, and its parameters are defined in the
-docstring of ``GoogleMapsDistances.__init__``.
-
 Each class has a built in error handler that can either return False or throw
 an exception returned by the requests library. This functionality can be
 toggled by passing ``fail_fast = True`` or ``fail_fast = False`` during class
 instantiation. This is useful if you want to handle exceptions on your own.
+
+Features specific to the ``GoogleMapsDistances`` class
+------------------------------------------------------
+
+The ``GoogleMapsDistances`` class includes built-in rate limiting that ensures
+that the `Google Maps web service API limits
+<https://developers.google.com/maps/premium/usage-limits#web-service-apis>`_
+are not exceeded, provided that all requests made to the Google Maps Distance
+Matrix API are made through a single instance of this class.
+
+The rate limiting function is called before every request and its parameters
+are defined in the docstring of ``GoogleMapsDistances.__init__``. By default,
+this limits you to 100k requests per 24 hours as defined by the API limits, but
+you are able to configure this in the class initialization.
+
+Additionally, ``GoogleMapsDistances.route`` exposes the ``departure_time``
+argument of the underlying ``googlemaps.Client.distance_matrix`` function,
+allowing you to get traffic-adjusted route durations:
+
+.. code-block:: python
+
+    import datetime
+
+    calculator.route(
+        *orig_latlong,
+        *dest_latlong,
+        mode = "drive",
+        departure_time = datetime.datetime(2017, 6, 7, 17)
+    )
+
+..
+
+::
+
+    2017-06-02T16:00:40.854631 Sending live traffic-adjusted request to Google
+    2017-06-02T16:00:41.083350 Response: {'rows': [{'elements': [{'distance': {'value': 2883, 'text': '2.9 km'}, 'duration': {'value': 736, 'text': '12 mins'}, 'duration_in_traffic': {'value': 803, 'text': '13 mins'}, 'status': 'OK'}]}], 'origin_addresses': ['Fencourt Rd, Boston, MA 02115, USA'], 'destination_addresses': ['130 Albany St, Cambridge, MA 02139, USA'], 'status': 'OK'}
+    {'distance': 2883, 'duration': 803}
+
+..
+
+Note that supplying ``departure_time`` can sometimes result in a different
+distance as well, as seen above - compare this distance to the distance
+obtained earlier by the first code snippet.
