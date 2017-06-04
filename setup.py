@@ -4,10 +4,10 @@ import setuptools
 
 setuptools.setup(
     name = "route_distances",
-    version = "1.5.1",
+    version = "1.6.1",
     license = "MIT",
     description = "Classes for getting the distance of a route between two"
                   "places using various different services",
     packages = ["route_distances"],
-    install_requires = ["googlemaps", "requests"]
+    install_requires = ["googlemaps", "requests", "shapely"]
 )

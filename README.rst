@@ -45,15 +45,55 @@ Included classes:
 * ``ValhallaDistances``: `Valhalla
   <https://mapzen.com/documentation/mobility/turn-by-turn/api-reference/>`_
 
-The base Distances class includes a ``distance(orig_long, orig_lat, dest_long,
-dest_lat)`` function that returns a dictionary containing the distance of the
-route in the ``distance`` index and the duration of the route in the
+The base Distances class includes a ``calculate(orig_long, orig_lat, dest_long,
+dest_lat, mode)`` method that returns a dictionary containing the distance of
+the route in the ``distance`` index and the duration of the route in the
 ``duration`` index, or ``False`` if no route could be made.
 
-Each class has a built in error handler that can either return False or throw
-an exception returned by the requests library. This functionality can be
-toggled by passing ``fail_fast = True`` or ``fail_fast = False`` during class
-instantiation. This is useful if you want to handle exceptions on your own.
+The ``mode`` argument is optional and is ``"walk"`` by default. You can also
+specify ``"drive"``, ``"bike"``, or ``"transit"``.
+
+The ``calculate`` method has a built in error handler that can either return
+False or throw an exception returned by the requests library. This
+functionality can be toggled by passing ``fail_fast = True`` or ``fail_fast =
+False`` during class instantiation. This is useful if you want to handle
+exceptions on your own.
+
+Preliminary isochrone generation with ``OTPDistances`` class
+------------------------------------------------------------
+
+The OTPDistances class, in addition to calculate routes, can request isochrone
+multipolygons with the ``isochrone(orig_long, orig_lat, max_time, mode)``
+method.  The ``orig_long``, ``orig_lat``, and ``mode`` arguments are the same
+as in ``calculate``; ``max_time`` is the distance from the outer edges of the
+isochrone to the origin point, in seconds.
+
+``isochrone`` returns a list of multipolygons. From the docstring:
+
+* Each multipolygon is an array of one or more polygons.
+* For each multipolygon, the first polygon is the "base" polygon; subsequent
+  polygons, if any, are subtractions from (gaps in) the base polygon. These are
+  areas that are within the base polygon that are not accessible.
+* Each polygon is an array of points.
+* Each point is a (longitude, latitude) tuple.
+
+Example usage:
+
+.. code-block:: python
+
+    import route_distances
+    route_distances.OTPDistances(verbose = True).isochrone(
+        -71.08885, 42.34037, 600, mode = "transit"
+    )
+
+..
+
+If ``verbose = True`` is passed to the class initialization, then the
+``staticmaps.py`` script is used to generate a Google Static Maps API request
+corresponding to your multipolygons. By pasting this into your browser window,
+you can see what your multipolygons look like on top of Google Maps. Green
+polygons are the base polygons; red polygons are inaccessible areas within the
+base polygons.
 
 Features specific to the ``GoogleMapsDistances`` class
 ------------------------------------------------------

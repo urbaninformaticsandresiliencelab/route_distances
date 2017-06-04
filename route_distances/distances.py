@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 
+from shapely import geometry
 import datetime
 import googlemaps
 import json
 import requests
 import time
+
+try:
+    from . import staticmaps
+except:
+    import staticmaps
 
 # Default entrypoint to be used for non-Google services when none is defined
 DEFAULT_ENTRYPOINT = "localhost:8000"
@@ -33,6 +39,8 @@ class Distances():
         verbose: A boolean describing whether or not verbose output should be
             enabled.
         timeout: An integer that describes how long until a route times out.
+        staticmaps: A staticmaps.Constructor object, only present if verbose is
+            true. This is used to visualize isochrones.
     """
 
     def __init__(self, timeout = DEFAULT_TIMEOUT, verbose = False,
@@ -50,6 +58,9 @@ class Distances():
         self.verbose = verbose
         self.timeout = timeout
         self.fail_fast = fail_fast
+
+        if (verbose):
+            self.staticmaps = staticmaps.Constructor()
 
     def log(self, string):
         """ Prints a string if verbose mode is enabled
@@ -350,15 +361,97 @@ class OTPDistances(Distances):
 
         self.log("Sending request: %s" % url)
         response = requests.get(url, timeout = self.timeout)
-        self.log("Response: %s" % response.content.decode())
+        data = response.content.decode()
+        self.log("Response: %s" % data)
 
         if (response.status_code == 200):
-            content = json.loads(response.content.decode())
+            content = json.loads(data)
             if (not "error" in content):
                 return {
                     "duration": content["plan"]["itineraries"][0]["legs"][0]["duration"],
                     "distance": content["plan"]["itineraries"][0]["legs"][0]["distance"],
                 }
+
+        return False
+
+    def isochrone(self, from_long, from_lat, max_time, mode = "walk"):
+        """ Generate an isochrone centered at a given point
+
+        Args:
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
+            max_time: The time, in seconds via the given mode of
+                transportation, that the outer edge of the isochrone will be
+                generated at.
+            mode: A key of the self.mode_map dictionary that will be remapped to
+                a different string and passed to the API.
+
+        Returns:
+            A list of multipolygons:
+
+            * Each multipolygon is an array of one or more polygons.
+            * For each multipolygon, the first polygon is the "base" polygon;
+              subsequent polygons, if any, are subtractions from (gaps in) the
+              base polygon. These are areas that are within the base polygon
+              that are not accessible.
+            * Each polygon is an array of points.
+            * Each point is a (longitude, latitude) tuple.
+        """
+
+        url = ("http://%s/otp/routers/default/isochrone"
+               "?fromPlace=%f,%f&cutoffSec=%d&mode=%s" % (
+            self.entrypoint,
+            from_lat, from_long,
+            max_time,
+            self.map_mode(mode)
+        ))
+
+        self.log("Sending request: %s" % url)
+        response = requests.get(url, timeout = self.timeout)
+        data = response.content.decode()
+        self.log("Response: %s" % data)
+
+        if (response.status_code == 200):
+            content = json.loads(data)
+            if ("features" in content):
+                # We only need to rearrange the (lat, long) as provided by
+                # OTP into (long, lat) as per library standard
+                multipolygons = [
+                    [
+                        [
+                            (point[0], point[1]) for point in polygon
+                        ]
+                        for polygon in multipolygon
+                    ]
+                    for multipolygon in content["features"][0]["geometry"]["coordinates"]
+                ]
+
+                if (self.verbose):
+                    for multipolygon in multipolygons:
+                        base = False
+                        for polygon in multipolygon:
+                            if (self.verbose):
+                                # Base polygon
+                                if (base == False):
+                                    self.staticmaps.add_coords(
+                                        polygon,
+                                        _type = "polygon",
+                                        color = "0x00ff0066"
+                                    )
+                                    base = True
+                                # Subtraction of that polygon
+                                else:
+                                    self.staticmaps.add_coords(
+                                        polygon,
+                                        _type = "polygon",
+                                        color = "0xff000066"
+                                    )
+
+                    self.log("Preview with Google Static Maps API: %s"
+                             % self.staticmaps.generate_url())
+                    self.staticmaps.reset()
+
+                return multipolygons
 
         return False
 
@@ -409,10 +502,11 @@ class OSRMDistances(Distances):
 
         self.log("Sending request: %s" % url)
         response = requests.get(url, timeout = self.timeout)
-        self.log("Response: %s" % response.content.decode())
+        data = response.content.decode()
+        self.log("Response: %s" % data)
 
         if (response.status_code == 200):
-            content = json.loads(response.content.decode())
+            content = json.loads(data)
             if (not "error" in content):
                 return {
                     "distance": content["routes"][0]["distance"],
@@ -483,10 +577,11 @@ class ValhallaDistances(Distances):
             json = request_json,
             timeout = self.timeout
         )
-        self.log("Response: %s" % response.content.decode())
+        data = response.content.decode()
+        self.log("Response: %s" % data)
 
         if (response.status_code == 200):
-            content = json.loads(response.content.decode())
+            content = json.loads(data)
             if (not "error" in content):
                 return {
                     "distance": content["trip"]["legs"][0]["summary"]["length"] * 1000,
