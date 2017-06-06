@@ -387,15 +387,7 @@ class OTPDistances(Distances):
                 a different string and passed to the API.
 
         Returns:
-            A list of multipolygons:
-
-            * Each multipolygon is an array of one or more polygons.
-            * For each multipolygon, the first polygon is the "base" polygon;
-              subsequent polygons, if any, are subtractions from (gaps in) the
-              base polygon. These are areas that are within the base polygon
-              that are not accessible.
-            * Each polygon is an array of points.
-            * Each point is a (longitude, latitude) tuple.
+            A GeoJSON multipolygon.
         """
 
         url = ("http://%s/otp/routers/default/isochrone"
@@ -414,23 +406,12 @@ class OTPDistances(Distances):
         if (response.status_code == 200):
             content = json.loads(data)
             if ("features" in content):
-                # We only need to rearrange the (lat, long) as provided by
-                # OTP into (long, lat) as per library standard
-                multipolygons = [
-                    [
-                        [
-                            (point[0], point[1]) for point in polygon
-                        ]
-                        for polygon in multipolygon
-                    ]
-                    for multipolygon in content["features"][0]["geometry"]["coordinates"]
-                ]
-
-                if (self.verbose):
-                    for multipolygon in multipolygons:
+                geojson = content["features"][0]["geometry"]
+                if (len(geojson["coordinates"]) > 0):
+                    if (self.verbose):
                         base = False
-                        for polygon in multipolygon:
-                            if (self.verbose):
+                        for multipolygon in geojson["coordinates"]:
+                            for polygon in multipolygon:
                                 # Base polygon
                                 if (base == False):
                                     self.staticmaps.add_coords(
@@ -447,11 +428,13 @@ class OTPDistances(Distances):
                                         color = "0xff000066"
                                     )
 
-                    self.log("Preview with Google Static Maps API: %s"
-                             % self.staticmaps.generate_url())
-                    self.staticmaps.reset()
+                        self.log("Preview with Google Static Maps API: %s"
+                                 % self.staticmaps.generate_url())
+                        self.staticmaps.reset()
 
-                return multipolygons
+                    return geojson
+                else:
+                    return False
 
         return False
 

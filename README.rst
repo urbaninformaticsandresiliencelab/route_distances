@@ -68,14 +68,8 @@ method.  The ``orig_long``, ``orig_lat``, and ``mode`` arguments are the same
 as in ``calculate``; ``max_time`` is the distance from the outer edges of the
 isochrone to the origin point, in seconds.
 
-``isochrone`` returns a list of multipolygons. From the docstring:
-
-* Each multipolygon is an array of one or more polygons.
-* For each multipolygon, the first polygon is the "base" polygon; subsequent
-  polygons, if any, are subtractions from (gaps in) the base polygon. These are
-  areas that are within the base polygon that are not accessible.
-* Each polygon is an array of points.
-* Each point is a (longitude, latitude) tuple.
+``isochrone`` returns a `GeoJSON MultiPolygon
+<https://en.wikipedia.org/wiki/GeoJSON#Geometries>`_.
 
 Example usage:
 
