@@ -369,7 +369,10 @@ class OTPDistances(Distances):
             if (not "error" in content):
                 return {
                     "duration": content["plan"]["itineraries"][0]["duration"],
-                    "distance": content["plan"]["itineraries"][0]["distance"],
+                    "distance": sum([
+                        leg["distance"]
+                        for leg in content["plan"]["itineraries"][0]["legs"]
+                    ]),
                 }
 
         return False
