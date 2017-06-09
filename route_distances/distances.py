@@ -368,8 +368,8 @@ class OTPDistances(Distances):
             content = json.loads(data)
             if (not "error" in content):
                 return {
-                    "duration": content["plan"]["itineraries"][0]["legs"][0]["duration"],
-                    "distance": content["plan"]["itineraries"][0]["legs"][0]["distance"],
+                    "duration": content["plan"]["itineraries"][0]["duration"],
+                    "distance": content["plan"]["itineraries"][0]["distance"],
                 }
 
         return False

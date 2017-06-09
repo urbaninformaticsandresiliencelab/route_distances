@@ -45,7 +45,7 @@ Included classes:
 * ``ValhallaDistances``: `Valhalla
   <https://mapzen.com/documentation/mobility/turn-by-turn/api-reference/>`_
 
-The base Distances class includes a ``calculate(orig_long, orig_lat, dest_long,
+The base Distances class includes a ``distance(orig_long, orig_lat, dest_long,
 dest_lat, mode)`` method that returns a dictionary containing the distance of
 the route in the ``distance`` index and the duration of the route in the
 ``duration`` index, or ``False`` if no route could be made.
@@ -53,11 +53,15 @@ the route in the ``distance`` index and the duration of the route in the
 The ``mode`` argument is optional and is ``"walk"`` by default. You can also
 specify ``"drive"``, ``"bike"``, or ``"transit"``.
 
-The ``calculate`` method has a built in error handler that can either return
+The ``distance`` method has a built in error handler that can either return
 False or throw an exception returned by the requests library. This
 functionality can be toggled by passing ``fail_fast = True`` or ``fail_fast =
 False`` during class instantiation. This is useful if you want to handle
 exceptions on your own.
+
+If you want to handle rate limiting, retrying, and exception handling entirely
+on your own, you can directly use the ``route`` method for which ``distance``
+is a front-end for.
 
 Preliminary isochrone generation with ``OTPDistances`` class
 ------------------------------------------------------------
