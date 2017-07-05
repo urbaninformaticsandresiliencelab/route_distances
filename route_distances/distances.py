@@ -253,7 +253,7 @@ class GoogleMapsDistances(Distances):
                 destinations = (dest_lat, dest_long),
                 units = "metric",
                 mode = self.map_mode(mode),
-                departure_time = departure_time.timestamp()
+                departure_time = departure_time
             )
 
         else:

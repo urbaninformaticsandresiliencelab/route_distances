@@ -63,24 +63,83 @@ If you want to handle rate limiting, retrying, and exception handling entirely
 on your own, you can directly use the ``route`` method for which ``distance``
 is a front-end for.
 
-Isochrone generation with the ``OTPDistances`` class
-----------------------------------------------------
+Overview of extra feature support
+---------------------------------
 
-The OTPDistances class, in addition to calculate routes, can request isochrone
-multipolygons with the ``isochrone(orig_long, orig_lat, max_time = None, 
-max_distance = None, mode = "walk")`` method.  The ``orig_long``, ``orig_lat``,
-and ``mode`` arguments are the same as in ``calculate``; ``max_time`` is the
-difference in time from the outer edges of the isochrone to the origin point,
-in seconds, and ``max_distance`` is the distance from the origin point to the
-outer edges of the isochrone, in meters.
+.. list-table::
 
-*Note:* The max_distance argument currently does nothing; `a bug has been filed
-regarding this
+   * - Feature
+     - Google Maps
+     - OTP
+     - OSRM
+     - Valhalla
+   * - Custom departure times
+     - yes[1]_
+     - yes
+     - no
+     - no
+   * - Isochrone generation
+     - no
+     - yes
+     - no
+     - no
+
+..
+
+.. [1] You can only specify custom departure times with GoogleMapsDistances if
+   you initialized the class by passing ``client_id`` and ``client_secret``.
+   More info about these arguments can be found below.
+
+Custom departure times
+----------------------
+
+For classes that support it, an additional ``departure_time`` argument can be
+passed to the ``route`` method in order to specify the departure time of the
+trip. ``departure_time`` should be a ``datetime.datetime`` object.
+
+Using this argument becomes important when dealing with the ``transit`` mode,
+as different departure times will result in different routes.
+
+.. code-block:: python
+
+    import datetime
+
+    calculator.route(
+        *orig_longlat,
+        *dest_longlat,
+        mode = "transit",
+        departure_time = datetime.datetime(2017, 6, 7, 17)
+    )
+
+..
+
+::
+
+    2017-06-02T16:00:40.854631 Sending live traffic-adjusted request to Google
+    2017-06-02T16:00:41.083350 Response: {'rows': [{'elements': [{'distance': {'value': 2883, 'text': '2.9 km'}, 'duration': {'value': 736, 'text': '12 mins'}, 'duration_in_traffic': {'value': 803, 'text': '13 mins'}, 'status': 'OK'}]}], 'origin_addresses': ['Fencourt Rd, Boston, MA 02115, USA'], 'destination_addresses': ['130 Albany St, Cambridge, MA 02139, USA'], 'status': 'OK'}
+    {'distance': 2883, 'duration': 803}
+
+..
+
+Note that supplying ``departure_time`` can sometimes result in a different
+distance as well, as seen above - compare this distance to the distance
+obtained earlier by the first code snippet.
+
+Isochrone generation
+--------------------
+
+For classes that support isochrone generation, the ``isochrone(orig_long,
+orig_lat, max_time = None, mode = "walk")`` method can be used to generate
+isochrones, returning a `GeoJSON MultiPolygon
+<https://en.wikipedia.org/wiki/GeoJSON#Geometries>`_ dict.  The ``orig_long``,
+``orig_lat``, and ``mode`` arguments are the same as in ``calculate``;
+``max_time`` is the difference in time from the outer edges of the isochrone to
+the origin point, in seconds.
+
+*Note:* An additional max_distance argument exists in ``OTPDistances`` but
+currently does nothing; `a bug has been filed regarding this
 <https://github.com/opentripplanner/OpenTripPlanner/issues/2454>`_ on the
 ``OpenTripPlanner`` bug tracker.
-
-``isochrone`` returns a `GeoJSON MultiPolygon
-<https://en.wikipedia.org/wiki/GeoJSON#Geometries>`_.
 
 Example usage:
 
@@ -100,8 +159,8 @@ you can see what your multipolygons look like on top of Google Maps. Green
 polygons are the base polygons; red polygons are inaccessible areas within the
 base polygons.
 
-Features specific to the ``GoogleMapsDistances`` class
-------------------------------------------------------
+Notes about ``GoogleMapsDistances`` class
+-----------------------------------------
 
 The ``GoogleMapsDistances`` class can be instantiated either by supplying
 ``api_key`` or both ``client_id`` and ``client_secret``. The latter two
@@ -118,33 +177,3 @@ The rate limiting function is called before every request and its parameters
 are defined in the docstring of ``GoogleMapsDistances.__init__``. By default,
 this limits you to 100k requests per 24 hours as defined by the API limits, but
 you are able to configure this in the class initialization.
-
-``GoogleMapsDistances.route`` exposes the ``departure_time`` argument of the
-underlying ``googlemaps.Client.distance_matrix`` function, allowing you to get
-traffic-adjusted route durations if initialized with ``client_id`` and
-``client_secret``:
-
-.. code-block:: python
-
-    import datetime
-
-    calculator.route(
-        *orig_longlat,
-        *dest_longlat,
-        mode = "drive",
-        departure_time = datetime.datetime(2017, 6, 7, 17)
-    )
-
-..
-
-::
-
-    2017-06-02T16:00:40.854631 Sending live traffic-adjusted request to Google
-    2017-06-02T16:00:41.083350 Response: {'rows': [{'elements': [{'distance': {'value': 2883, 'text': '2.9 km'}, 'duration': {'value': 736, 'text': '12 mins'}, 'duration_in_traffic': {'value': 803, 'text': '13 mins'}, 'status': 'OK'}]}], 'origin_addresses': ['Fencourt Rd, Boston, MA 02115, USA'], 'destination_addresses': ['130 Albany St, Cambridge, MA 02139, USA'], 'status': 'OK'}
-    {'distance': 2883, 'duration': 803}
-
-..
-
-Note that supplying ``departure_time`` can sometimes result in a different
-distance as well, as seen above - compare this distance to the distance
-obtained earlier by the first code snippet.
