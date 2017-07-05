@@ -120,8 +120,8 @@ class Distances():
             return False
 
 class GoogleMapsDistances(Distances):
-    """ Subclass of Distances that uses the Google Maps Distances Matrix API as a
-    backend
+    """ Subclass of Distances that uses the Google Maps Distances Matrix API as
+    a backend
 
     Attributes:
         gmaps: An instance of googlemaps.Client used for scraping.
@@ -211,7 +211,7 @@ class GoogleMapsDistances(Distances):
             self.period_start = time.time()
             self.requests_this_period = 0
 
-    def route(self, orig_long, orig_lat, dest_long, dest_lat, 
+    def route(self, orig_long, orig_lat, dest_long, dest_lat,
               departure_time = None, mode = "walk"):
         """ Routes the distance between two coordinates
 
@@ -377,7 +377,8 @@ class OTPDistances(Distances):
 
         return False
 
-    def isochrone(self, from_long, from_lat, max_time, mode = "walk"):
+    def isochrone(self, from_long, from_lat, max_time = None,
+                  max_distance = None, mode = "walk"):
         """ Generate an isochrone centered at a given point
 
         Args:
@@ -386,18 +387,31 @@ class OTPDistances(Distances):
             max_time: The time, in seconds via the given mode of
                 transportation, that the outer edge of the isochrone will be
                 generated at.
-            mode: A key of the self.mode_map dictionary that will be remapped to
-                a different string and passed to the API.
+            max_distance: The distance, in meters, that the outer edge of
+                the isochrone will be generated at. (BROKEN)
+            mode: A key of the self.mode_map dictionary that will be remapped
+                to a different string and passed to the API.
 
         Returns:
             A GeoJSON multipolygon.
         """
 
+        isochrone_args = []
+
+        if (max_distance):
+            isochrone_args.append("maxWalkDistance=%d" % max_distance)
+
+        if (max_time):
+            isochrone_args.append("cutoffSec=%d" % max_time)
+
+        if (len(isochrone_args) == 0):
+            raise AssertionError("Both max_distance and max_time are None")
+
         url = ("http://%s/otp/routers/default/isochrone"
-               "?fromPlace=%f,%f&cutoffSec=%d&mode=%s" % (
+               "?fromPlace=%f,%f&%s&mode=%s" % (
             self.entrypoint,
             from_lat, from_long,
-            max_time,
+            "&".join(isochrone_args),
             self.map_mode(mode)
         ))
 
@@ -410,7 +424,10 @@ class OTPDistances(Distances):
             content = json.loads(data)
             if ("features" in content):
                 geojson = content["features"][0]["geometry"]
+
                 if (len(geojson["coordinates"]) > 0):
+
+                    # Visualization
                     if (self.verbose):
                         base = False
                         for multipolygon in geojson["coordinates"]:

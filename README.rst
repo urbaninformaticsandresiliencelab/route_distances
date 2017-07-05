@@ -63,14 +63,21 @@ If you want to handle rate limiting, retrying, and exception handling entirely
 on your own, you can directly use the ``route`` method for which ``distance``
 is a front-end for.
 
-Preliminary isochrone generation with ``OTPDistances`` class
-------------------------------------------------------------
+Isochrone generation with the ``OTPDistances`` class
+----------------------------------------------------
 
 The OTPDistances class, in addition to calculate routes, can request isochrone
-multipolygons with the ``isochrone(orig_long, orig_lat, max_time, mode)``
-method.  The ``orig_long``, ``orig_lat``, and ``mode`` arguments are the same
-as in ``calculate``; ``max_time`` is the distance from the outer edges of the
-isochrone to the origin point, in seconds.
+multipolygons with the ``isochrone(orig_long, orig_lat, max_time = None, 
+max_distance = None, mode = "walk")`` method.  The ``orig_long``, ``orig_lat``,
+and ``mode`` arguments are the same as in ``calculate``; ``max_time`` is the
+difference in time from the outer edges of the isochrone to the origin point,
+in seconds, and ``max_distance`` is the distance from the origin point to the
+outer edges of the isochrone, in meters.
+
+*Note:* The max_distance argument currently does nothing; `a bug has been filed
+regarding this
+<https://github.com/opentripplanner/OpenTripPlanner/issues/2454>`_ on the
+``OpenTripPlanner`` bug tracker.
 
 ``isochrone`` returns a `GeoJSON MultiPolygon
 <https://en.wikipedia.org/wiki/GeoJSON#Geometries>`_.
@@ -81,7 +88,7 @@ Example usage:
 
     import route_distances
     route_distances.OTPDistances(verbose = True).isochrone(
-        -71.08885, 42.34037, 600, mode = "transit"
+        -71.08885, 42.34037, max_time = 600, mode = "transit"
     )
 
 ..
