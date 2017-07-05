@@ -357,7 +357,12 @@ class OTPDistances(Distances):
         ))
 
         if (departure_time):
-            url += "&dateTime=%d" % (departure_time.timestamp() * 1000)
+            #url += "&dateTime=%d" % (departure_time.timestamp() * 1000)
+            url = "&".join([
+                url,
+                "date=%s" % (departure_time.strftime("%Y-%m-%d")),
+                "time=%s" % (departure_time.strftime("%H:%M"))
+            ])
 
         self.log("Sending request: %s" % url)
         response = requests.get(url, timeout = self.timeout)
