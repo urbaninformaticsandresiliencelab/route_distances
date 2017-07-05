@@ -74,7 +74,7 @@ Overview of extra feature support
      - OSRM
      - Valhalla
    * - Custom departure times
-     - yes[1]_
+     - yes [*]_
      - yes
      - no
      - no
@@ -86,7 +86,7 @@ Overview of extra feature support
 
 ..
 
-.. [1] You can only specify custom departure times with GoogleMapsDistances if
+.. [*] You can only specify custom departure times with GoogleMapsDistances if
    you initialized the class by passing ``client_id`` and ``client_secret``.
    More info about these arguments can be found below.
 
