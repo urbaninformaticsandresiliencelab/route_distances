@@ -211,8 +211,8 @@ class GoogleMapsDistances(Distances):
             self.period_start = time.time()
             self.requests_this_period = 0
 
-    def route(self, orig_long, orig_lat, dest_long, dest_lat,
-              departure_time = None, mode = "walk"):
+    def route(self, orig_long, orig_lat, dest_long, dest_lat, mode = "walk",
+              departure_time = None):
         """ Routes the distance between two coordinates
 
         Args:
@@ -222,7 +222,8 @@ class GoogleMapsDistances(Distances):
             dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
                 a different string and passed to the API.
-            departure_time: From the Google Maps API Python client docs:
+            departure_time: A datetime.datetime object. From the Google Maps
+                API Python client docs:
 
                     Specifies the desired time of departure as seconds since
                     midnight, January 1, 1970 UTC. The departure time may be
@@ -252,15 +253,8 @@ class GoogleMapsDistances(Distances):
                 destinations = (dest_lat, dest_long),
                 units = "metric",
                 mode = self.map_mode(mode),
-                departure_time = departure_time
+                departure_time = departure_time.timestamp()
             )
-            self.log("Response: %s" % result)
-
-            if (result["status"] == "OK"):
-                return {
-                    "duration": result["rows"][0]["elements"][0]["duration_in_traffic"]["value"],
-                    "distance": result["rows"][0]["elements"][0]["distance"]["value"]
-                }
 
         else:
 
@@ -271,15 +265,15 @@ class GoogleMapsDistances(Distances):
                 units = "metric",
                 mode = self.map_mode(mode)
             )
-            self.log("Response: %s" % result)
 
-            if (result["status"] == "OK"):
-                return {
-                    "duration": result["rows"][0]["elements"][0]["duration"]["value"],
-                    "distance": result["rows"][0]["elements"][0]["distance"]["value"]
-                }
+        self.log("Response: %s" % result)
+        if (result["status"] == "OK"):
+            return {
+                "duration": result["rows"][0]["elements"][0]["duration"]["value"],
+                "distance": result["rows"][0]["elements"][0]["distance"]["value"]
+            }
 
-            return False
+        return False
 
     def route_multi(self, orig_long, orig_lat, destinations, mode = "walk"):
         """ Routes the distance between one origin and multiple destinations
@@ -334,7 +328,8 @@ class OTPDistances(Distances):
             "walk": "WALK"
         }
 
-    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk",
+              departure_time = None):
         """ Routes the distance between two coordinates
 
         Args:
@@ -344,6 +339,8 @@ class OTPDistances(Distances):
             dest_lat: The destination latitude.
             mode: A key of the self.mode_map dictionary that will be remapped to
                 a different string and passed to the API.
+            departure_time: A datetime.datetime object corresponding to the
+                desired departure time.
 
         Returns:
             A dictionary containing the total duration in the "duration" key and
@@ -358,6 +355,9 @@ class OTPDistances(Distances):
             from_lat, from_long, to_lat, to_long,
             self.map_mode(mode)
         ))
+
+        if (departure_time):
+            url += "&dateTime=%d" % (departure_time.timestamp() * 1000)
 
         self.log("Sending request: %s" % url)
         response = requests.get(url, timeout = self.timeout)
