@@ -270,7 +270,8 @@ class GoogleMapsDistances(Distances):
         if (result["status"] == "OK"):
             return {
                 "duration": result["rows"][0]["elements"][0]["duration"]["value"],
-                "distance": result["rows"][0]["elements"][0]["distance"]["value"]
+                "distance": result["rows"][0]["elements"][0]["distance"]["value"],
+                "response": result
             }
 
         return False
@@ -303,7 +304,8 @@ class GoogleMapsDistances(Distances):
             for element in result["rows"][0]["elements"]:
                 results.append({
                     "duration": element["duration"]["value"],
-                    "distance": element["distance"]["value"]
+                    "distance": element["distance"]["value"],
+                    "response": element
                 })
             return results
 
@@ -378,6 +380,7 @@ class OTPDistances(Distances):
                         leg["distance"]
                         for leg in content["plan"]["itineraries"][0]["legs"]
                     ]),
+                    "response": content
                 }
 
         return False
@@ -519,6 +522,7 @@ class OSRMDistances(Distances):
                 return {
                     "distance": content["routes"][0]["distance"],
                     "duration": content["routes"][0]["duration"],
+                    "response": content
                 }
 
         return False
@@ -593,7 +597,8 @@ class ValhallaDistances(Distances):
             if (not "error" in content):
                 return {
                     "distance": content["trip"]["legs"][0]["summary"]["length"] * 1000,
-                    "duration": content["trip"]["legs"][0]["summary"]["time"]
+                    "duration": content["trip"]["legs"][0]["summary"]["time"],
+                    "response": content
                 }
 
         return False
