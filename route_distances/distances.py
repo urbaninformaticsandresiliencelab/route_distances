@@ -603,3 +603,64 @@ class ValhallaDistances(Distances):
 
         return False
 
+class GraphHopperDistances(Distances):
+    """ Subclass of Distances that uses GraphHopper as a backend """
+
+    def __init__(self, entrypoint = DEFAULT_ENTRYPOINT, *args, **kwargs):
+        """ Initializes the GraphHopperDistances class
+
+        Args:
+            entrypoint: The base URL containing the API entrypoint.
+        """
+
+        Distances.__init__(self, *args, **kwargs)
+        self.entrypoint = entrypoint
+        self.mode_map = {
+            "bike": "bike",
+            "drive": "car",
+            "transit": "none",
+            "walk": "foot"
+        }
+
+    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+        """ Routes the distance between two coordinates
+
+        Args:
+            orig_long: The origin longitude.
+            orig_lat: The origin latitude.
+            dest_long: The destination longitude.
+            dest_lat: The destination latitude.
+            mode: A key of the self.mode_map dictionary that will be remapped to
+                a different string and passed to the API.
+
+        Returns:
+            A dictionary containing the total duration in the "duration" key and
+                the total distance in the "distance" key if there are no errors;
+                False if there are errors. Distance is in meters; duration is in
+                seconds.
+        """
+
+
+        url = ("http://%s/route?"
+               "point=%f,%f&point=%f,%f"
+               "&vehicle=%s" % (
+            self.entrypoint,
+            from_lat, from_long, to_lat, to_long,
+            self.map_mode(mode)
+        ))
+
+        self.log("Sending request: %s" % url)
+        response = requests.get(url, timeout = self.timeout)
+        data = response.content.decode()
+        self.log("Response: %s" % data)
+
+        if (response.status_code == 200):
+            content = json.loads(data)
+            if (not "error" in content):
+                return {
+                    "distance": content["paths"][0]["distance"],
+                    "duration": content["paths"][0]["time"] / 1000,
+                    "response": content
+                }
+
+        return False
