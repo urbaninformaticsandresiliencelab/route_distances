@@ -622,7 +622,8 @@ class GraphHopperDistances(Distances):
             "walk": "foot"
         }
 
-    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk"):
+    def route(self, from_long, from_lat, to_long, to_lat, mode = "walk",
+              *args, **kwargs):
         """ Routes the distance between two coordinates
 
         Args:
