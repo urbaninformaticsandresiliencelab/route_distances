@@ -1,6 +1,9 @@
 route_distances
 ===============
 
+.. image:: https://zenodo.org/badge/88534551.svg
+   :target: https://zenodo.org/badge/latestdoi/88534551
+
 Classes to simplify the process of getting the distance and duration of a route
 between two places using various different routing services
 
